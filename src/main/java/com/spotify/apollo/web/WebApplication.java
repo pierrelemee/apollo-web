@@ -1,8 +1,8 @@
-package fr.pierrelemee.apollo.web;
+package com.spotify.apollo.web;
 
 import com.spotify.apollo.httpservice.HttpService;
-import fr.pierrelemee.apollo.web.controller.AssetsProvider;
-import fr.pierrelemee.apollo.web.controller.Controller;
+import com.spotify.apollo.web.controller.AssetsProvider;
+import com.spotify.apollo.web.controller.Controller;
 
 import java.util.List;
 

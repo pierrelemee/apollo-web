@@ -1,4 +1,4 @@
-package fr.pierrelemee.apollo.web.controller;
+package com.spotify.apollo.web.controller;
 
 import com.spotify.apollo.Response;
 import com.spotify.apollo.Status;

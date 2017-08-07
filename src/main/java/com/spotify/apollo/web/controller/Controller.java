@@ -1,7 +1,8 @@
-package fr.pierrelemee.apollo.web.controller;
+package com.spotify.apollo.web.controller;
 
 import com.spotify.apollo.Response;
 import com.spotify.apollo.Status;
+import com.spotify.apollo.WebRequest;
 import com.spotify.apollo.route.AsyncHandler;
 import com.spotify.apollo.route.Route;
 import com.spotify.apollo.route.RouteProvider;
@@ -21,10 +22,11 @@ public abstract class Controller implements RouteProvider {
                 method.getDeclaredAnnotation(RouteAnnotation.class).method(),
                 method.getDeclaredAnnotation(RouteAnnotation.class).uri(),
                 requestContext -> {
+                    WebRequest request = new WebRequest(requestContext.request().uri(), requestContext.request().method(), requestContext.request().payload().isPresent() ? requestContext.request().payload().get() : null, requestContext.request().headers());
                     try {
                         if (method.getParameterCount() > 0) {
                             Object[] args = new Object[1 + method.getDeclaredAnnotation(RouteAnnotation.class).parameters().length];
-                            args[0] = requestContext.request();
+                            args[0] = request;
                             int index = 1;
                             for (String name: method.getDeclaredAnnotation(RouteAnnotation.class).parameters()) {
                                 args[index++] = requestContext.pathArgs().get(name);
