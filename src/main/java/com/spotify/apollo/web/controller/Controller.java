@@ -42,4 +42,15 @@ public abstract class Controller implements RouteProvider {
                 })
             );
     }
+
+    protected Response<String>  redirect(String location) {
+        return this.redirect(location, false);
+    }
+
+    protected Response<String> redirect(String location, boolean permanent) {
+        Response<String> response = Response.of(permanent ? Status.MOVED_PERMANENTLY : Status.FOUND, "");
+        response.headers().put("Location", location);
+        return response;
+
+    }
 }
