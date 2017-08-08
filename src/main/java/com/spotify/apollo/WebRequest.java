@@ -13,7 +13,8 @@ public class WebRequest implements Request {
 
     private final String method;
     private final String uri;
-    private final Map<String, List<String>> parameters;
+    private final Map<String, List<String>> get;
+    private final Map<String, List<String>> post;
     private final Map<String, String> headers;
     private final Optional<ByteString> payload;
 
@@ -33,7 +34,13 @@ public class WebRequest implements Request {
         this.method = method;
         this.uri = uri;
         this.payload = Optional.of(payload != null ? payload : ByteString.EMPTY);
-        this.parameters = new QueryStringDecoder(method.equalsIgnoreCase(POST) ? (this.payload().isPresent() ? this.payload().get().utf8() : ""): this.uri).parameters();
+        if (method.equalsIgnoreCase(POST)) {
+            this.post = new QueryStringDecoder(this.payload().isPresent() ? this.payload().get().utf8() : "", false).parameters();
+            this.get = Collections.emptyMap();
+        } else {
+            this.get = new QueryStringDecoder(this.uri).parameters();
+            this.post = Collections.emptyMap();
+        }
         this.headers = headers;
     }
 
@@ -47,9 +54,16 @@ public class WebRequest implements Request {
         return this.uri;
     }
 
+    public Map<String, List<String>> get() {
+        return this.get;
+    }
+    public Map<String, List<String>> post() {
+        return this.post;
+    }
+
     @Override
     public Map<String, List<String>> parameters() {
-        return this.parameters;
+        return this.method.equalsIgnoreCase(POST) ? this.post : this.get;
     }
 
     @Override
