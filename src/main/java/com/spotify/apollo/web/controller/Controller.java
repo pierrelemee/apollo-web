@@ -48,9 +48,9 @@ public abstract class Controller implements RouteProvider {
     }
 
     protected Response<String> redirect(String location, boolean permanent) {
-        Response<String> response = Response.of(permanent ? Status.MOVED_PERMANENTLY : Status.FOUND, "");
-        response.headers().put("Location", location);
-        return response;
+        return Response
+            .of(permanent?Status.MOVED_PERMANENTLY:Status.FOUND, "")
+            .withHeader("Location", location);
 
     }
 }
