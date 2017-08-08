@@ -9,6 +9,8 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD) //on class level
 public @interface RouteAnnotation {
 
+    String name();
+
     String uri() default "/";
 
     String method() default "GET";
