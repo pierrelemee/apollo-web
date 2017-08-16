@@ -1,13 +1,17 @@
 package com.spotify.apollo.web.controller;
 
+import com.spotify.apollo.Request;
 import com.spotify.apollo.Response;
 import com.spotify.apollo.Status;
 import com.spotify.apollo.WebRequest;
 import com.spotify.apollo.route.AsyncHandler;
 import com.spotify.apollo.route.Route;
 import com.spotify.apollo.route.RouteProvider;
+import sun.misc.GC;
 
+import java.lang.reflect.Parameter;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.stream.Stream;
 
 public abstract class Controller implements RouteProvider {
@@ -22,14 +26,21 @@ public abstract class Controller implements RouteProvider {
                 method.getDeclaredAnnotation(RouteAnnotation.class).method(),
                 method.getDeclaredAnnotation(RouteAnnotation.class).uri(),
                 requestContext -> {
-                    WebRequest request = new WebRequest(requestContext.request().uri(), requestContext.request().method(), requestContext.request().payload().isPresent() ? requestContext.request().payload().get() : null, requestContext.request().headers());
                     try {
                         if (method.getParameterCount() > 0) {
-                            Object[] args = new Object[1 + method.getDeclaredAnnotation(RouteAnnotation.class).parameters().length];
-                            args[0] = request;
-                            int index = 1;
-                            for (String name: method.getDeclaredAnnotation(RouteAnnotation.class).parameters()) {
-                                args[index++] = requestContext.pathArgs().get(name);
+                            Object[] args = new Object[method.getParameterCount()];
+                            for (int i = 0; i < method.getParameterCount(); i++) {
+                                if (method.getParameters()[i].getType().equals(WebRequest.class)) {
+                                    args[i] = new WebRequest(
+                                            requestContext.request().uri(),
+                                            requestContext.pathArgs(),
+                                            requestContext.request().method(),
+                                            requestContext.request().payload().isPresent() ? requestContext.request().payload().get() : null, requestContext.request().headers());
+                                } else if (method.getParameters()[i].getType().equals(Request.class)) {
+                                    args[i] = requestContext.request();
+                                } else {
+                                    args[i] = null;
+                                }
                             }
 
                             return (Response) method.invoke(this, args);
