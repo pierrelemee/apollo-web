@@ -27,7 +27,7 @@ public abstract class Controller implements RouteProvider {
         // Override if needed
     }
 
-    protected void onResponse(Response<String> response, WebRequest request) {
+    protected void onResponse(Response response, WebRequest request) {
         // Inject all cookie headers to inform client of newly added cookies
         for (String key: this.cookies.keySet()) {
             request.headers().put("Set-Cookie", this.cookies.get(key));
@@ -66,7 +66,7 @@ public abstract class Controller implements RouteProvider {
                         }
 
                         this.onRequest(request);
-                        Response<String> response = (Response) method.invoke(this);
+                        Response response = (Response) method.invoke(this, args);
                         this.onResponse(response, request);
 
                         return response;
