@@ -10,6 +10,7 @@ import com.spotify.apollo.route.RouteProvider;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -20,7 +21,7 @@ public abstract class Controller implements RouteProvider {
     protected Map<String, String> cookies;
 
     public Controller() {
-        this.cookies = Collections.emptyMap();
+        this.cookies = new HashMap<>();
     }
 
     protected void onRequest(WebRequest request) {
