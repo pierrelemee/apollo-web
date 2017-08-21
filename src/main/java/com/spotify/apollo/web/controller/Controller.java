@@ -7,14 +7,34 @@ import com.spotify.apollo.WebRequest;
 import com.spotify.apollo.route.AsyncHandler;
 import com.spotify.apollo.route.Route;
 import com.spotify.apollo.route.RouteProvider;
-import sun.misc.GC;
 
-import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 import java.util.stream.Stream;
 
 public abstract class Controller implements RouteProvider {
+    /**
+     * List of cookies to be added in the response
+     */
+    protected Map<String, String> cookies;
+
+    public Controller() {
+        this.cookies = Collections.emptyMap();
+    }
+
+    protected void onRequest(WebRequest request) {
+        // Override if needed
+    }
+
+    protected void onResponse(Response<String> response, WebRequest request) {
+        // Inject all cookie headers to inform client of newly added cookies
+        for (String key: this.cookies.keySet()) {
+            request.headers().put("Set-Cookie", this.cookies.get(key));
+        }
+        // reinitialize the list of cookies to add
+        this.cookies.clear();
+    }
 
     @Override
     public Stream<? extends Route<? extends AsyncHandler<?>>> routes() {
@@ -26,27 +46,32 @@ public abstract class Controller implements RouteProvider {
                 method.getDeclaredAnnotation(RouteAnnotation.class).method(),
                 method.getDeclaredAnnotation(RouteAnnotation.class).uri(),
                 requestContext -> {
-                    try {
-                        if (method.getParameterCount() > 0) {
-                            Object[] args = new Object[method.getParameterCount()];
-                            for (int i = 0; i < method.getParameterCount(); i++) {
-                                if (method.getParameters()[i].getType().equals(WebRequest.class)) {
-                                    args[i] = new WebRequest(
-                                            requestContext.request().uri(),
-                                            requestContext.pathArgs(),
-                                            requestContext.request().method(),
-                                            requestContext.request().payload().isPresent() ? requestContext.request().payload().get() : null, requestContext.request().headers());
-                                } else if (method.getParameters()[i].getType().equals(Request.class)) {
-                                    args[i] = requestContext.request();
-                                } else {
-                                    args[i] = null;
-                                }
-                            }
+                    WebRequest request = new WebRequest(
+                            requestContext.request().uri(),
+                            requestContext.pathArgs(),
+                            requestContext.request().method(),
+                            requestContext.request().payload().isPresent() ? requestContext.request().payload().get() : null, requestContext.request().headers());
 
-                            return (Response) method.invoke(this, args);
+                    try {
+
+                        Object[] args = new Object[method.getParameterCount()];
+                        for (int i = 0; i < method.getParameterCount(); i++) {
+                            if (method.getParameters()[i].getType().equals(WebRequest.class)) {
+                                args[i] = request;
+                            } else if (method.getParameters()[i].getType().equals(Request.class)) {
+                                args[i] = requestContext.request();
+                            } else {
+                                args[i] = null;
+                            }
                         }
 
-                        return (Response) method.invoke(this);
+                        this.onRequest(request);
+                        Response<String> response = (Response) method.invoke(this);
+                        this.onResponse(response, request);
+
+                        return response;
+
+
                     } catch (Exception e) {
                         return Response.of(Status.INTERNAL_SERVER_ERROR, e.getMessage());
                     }
