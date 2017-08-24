@@ -8,11 +8,15 @@ import com.spotify.apollo.route.AsyncHandler;
 import com.spotify.apollo.route.Route;
 import com.spotify.apollo.route.RouteProvider;
 import com.spotify.apollo.web.Cookie;
+import com.spotify.apollo.web.Session;
+import com.spotify.apollo.web.session.SessionManager;
 import okio.ByteString;
 
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public abstract class Controller implements RouteProvider {
@@ -20,6 +24,7 @@ public abstract class Controller implements RouteProvider {
      * List of cookies to be added in the response
      */
     protected Map<String, Cookie> cookies;
+    protected SessionManager sessionManager;
 
     public Controller() {
         this.cookies = new HashMap<>();
@@ -27,15 +32,29 @@ public abstract class Controller implements RouteProvider {
 
     protected void onRequest(WebRequest request) {
         // Override if needed
+        if (null != this.sessionManager) {
+            Session session = this.sessionManager.extract(request);
+
+            if (null == session) {
+                session = this.sessionManager.createSession();
+                this.addCookie(Cookie.Builder
+                    .create(this.sessionManager.getSessionCookieName())
+                    .setValue(session.getKey())
+                    .setExpires(15, ChronoUnit.SECONDS)
+                    .build()
+                );
+            }
+        }
     }
 
     protected Response<ByteString> onResponse(WebRequest request, Response<ByteString> response) {
-        // Inject all cookie headers to inform client of newly added cookies
-        for (String key: this.cookies.keySet()) {
-            response = response.withHeader("Set-Cookie", this.cookies.get(key).getHeader());
+        // Inject the cookie header to inform client of newly added cookies
+        if (this.cookies.size() > 0) {
+            String header = String.join(", ", this.cookies.values().stream().map(Cookie::getHeader).collect(Collectors.toList()));
+            this.cookies.clear();
+
+            return response.withHeader("Set-Cookie", header);
         }
-        // reinitialize the list of cookies to add
-        this.cookies.clear();
 
         return response;
     }
@@ -54,6 +73,8 @@ public abstract class Controller implements RouteProvider {
                 method.getDeclaredAnnotation(RouteAnnotation.class).method(),
                 method.getDeclaredAnnotation(RouteAnnotation.class).uri(),
                 requestContext -> {
+
+
                     WebRequest request = new WebRequest(
                             requestContext.request().uri(),
                             requestContext.pathArgs(),
