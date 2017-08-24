@@ -7,9 +7,10 @@ import com.spotify.apollo.WebRequest;
 import com.spotify.apollo.route.AsyncHandler;
 import com.spotify.apollo.route.Route;
 import com.spotify.apollo.route.RouteProvider;
+import com.spotify.apollo.web.Cookie;
+import okio.ByteString;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -18,7 +19,7 @@ public abstract class Controller implements RouteProvider {
     /**
      * List of cookies to be added in the response
      */
-    protected Map<String, String> cookies;
+    protected Map<String, Cookie> cookies;
 
     public Controller() {
         this.cookies = new HashMap<>();
@@ -28,13 +29,19 @@ public abstract class Controller implements RouteProvider {
         // Override if needed
     }
 
-    protected void onResponse(Response response, WebRequest request) {
+    protected Response<ByteString> onResponse(WebRequest request, Response<ByteString> response) {
         // Inject all cookie headers to inform client of newly added cookies
         for (String key: this.cookies.keySet()) {
-            request.headers().put("Set-Cookie", this.cookies.get(key));
+            response = response.withHeader("Set-Cookie", this.cookies.get(key).getHeader());
         }
         // reinitialize the list of cookies to add
         this.cookies.clear();
+
+        return response;
+    }
+
+    protected void addCookie(Cookie cookie) {
+        this.cookies.put(cookie.getKey(), cookie);
     }
 
     @Override
@@ -67,13 +74,17 @@ public abstract class Controller implements RouteProvider {
                         }
 
                         this.onRequest(request);
-                        Response response = (Response) method.invoke(this, args);
-                        this.onResponse(response, request);
+                        Response r = (Response) method.invoke(this, args);
+
+                        Response<ByteString> response =
+                            Response.of(r.status(), ByteString.encodeUtf8(r.payload().isPresent() ? r.payload().get().toString() : "Ok"));
+                        response = this.onResponse(request, response);
 
                         return response;
 
 
                     } catch (Exception e) {
+                        e.printStackTrace(System.err);
                         return Response.of(Status.INTERNAL_SERVER_ERROR, e.getMessage());
                     }
                 })

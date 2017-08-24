@@ -2,10 +2,7 @@ package com.spotify.apollo;
 
 import okio.ByteString;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 public class WebRequest implements Request {
 
@@ -16,8 +13,8 @@ public class WebRequest implements Request {
     private final Map<String, String> variables;
     private final Map<String, List<String>> get;
     private final Map<String, List<String>> post;
-    private final Map<String, String> headers;
-    private final Map<String, String> cookies;
+    private Map<String, String> headers;
+    private Map<String, String> cookies;
     private final Optional<ByteString> payload;
 
     public WebRequest(String uri) {
@@ -49,7 +46,7 @@ public class WebRequest implements Request {
             this.post = Collections.emptyMap();
         }
         this.headers = headers;
-        this.cookies = Collections.emptyMap();
+        this.cookies = new HashMap<>();
 
         if (this.header("Cookie").isPresent()) {
             for (String cookie: this.header("Cookie").get().split(";")) {
@@ -89,6 +86,7 @@ public class WebRequest implements Request {
     public boolean hasCookie(String name) {
         return this.cookies.containsKey(name);
     }
+
     public String getCookie(String name) {
         return this.cookies.get(name);
     }
