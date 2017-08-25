@@ -11,11 +11,8 @@ import com.spotify.apollo.web.Cookie;
 import com.spotify.apollo.web.Session;
 import com.spotify.apollo.web.session.SessionManager;
 import okio.ByteString;
-
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -24,27 +21,29 @@ public abstract class Controller implements RouteProvider {
      * List of cookies to be added in the response
      */
     protected Map<String, Cookie> cookies;
-    protected SessionManager sessionManager;
+    protected SessionManager<? extends Session> sessionManager;
+    protected Renderer renderer;
 
     public Controller() {
+        this(null, null);
+    }
+
+    public Controller(SessionManager<? extends Session> sessionManager) {
+        this(sessionManager, null);
+    }
+
+    public Controller(Renderer renderer) {
+        this(null, renderer);
+    }
+
+    public Controller(SessionManager<? extends Session> sessionManager, Renderer renderer) {
         this.cookies = new HashMap<>();
+        this.sessionManager = sessionManager;
+        this.renderer = renderer;
     }
 
     protected void onRequest(WebRequest request) {
         // Override if needed
-        if (null != this.sessionManager) {
-            Session session = this.sessionManager.extract(request);
-
-            if (null == session) {
-                session = this.sessionManager.createSession();
-                this.addCookie(Cookie.Builder
-                    .create(this.sessionManager.getSessionCookieName())
-                    .setValue(session.getKey())
-                    .setExpires(15, ChronoUnit.SECONDS)
-                    .build()
-                );
-            }
-        }
     }
 
     protected Response<ByteString> onResponse(WebRequest request, Response<ByteString> response) {
@@ -73,8 +72,6 @@ public abstract class Controller implements RouteProvider {
                 method.getDeclaredAnnotation(RouteAnnotation.class).method(),
                 method.getDeclaredAnnotation(RouteAnnotation.class).uri(),
                 requestContext -> {
-
-
                     WebRequest request = new WebRequest(
                             requestContext.request().uri(),
                             requestContext.pathArgs(),
@@ -83,12 +80,25 @@ public abstract class Controller implements RouteProvider {
 
                     try {
 
+                        Session session = this.sessionManager.extract(request);
+
+                        if (request.hasCookie(this.sessionManager.getSessionCookieName())) {
+                            this.addCookie(Cookie.Builder
+                                    .create(this.sessionManager.getSessionCookieName())
+                                    .setValue(session.getKey())
+                                    .setExpires(15, ChronoUnit.MINUTES)
+                                    .build()
+                            );
+                        }
+
                         Object[] args = new Object[method.getParameterCount()];
                         for (int i = 0; i < method.getParameterCount(); i++) {
                             if (method.getParameters()[i].getType().equals(WebRequest.class)) {
                                 args[i] = request;
                             } else if (method.getParameters()[i].getType().equals(Request.class)) {
                                 args[i] = requestContext.request();
+                            } else if (this.sessionManager != null && method.getParameters()[i].getType().equals(session.getClass())){
+                                args[i] = session;
                             } else {
                                 args[i] = null;
                             }
@@ -96,17 +106,15 @@ public abstract class Controller implements RouteProvider {
 
                         this.onRequest(request);
                         Response r = (Response) method.invoke(this, args);
-
-                        Response<ByteString> response =
-                            Response.of(r.status(), ByteString.encodeUtf8(r.payload().isPresent() ? r.payload().get().toString() : "Ok"));
+                        System.out.println("Coucou");
+                        Response<ByteString> response = Response.of(r.status(), ByteString.encodeUtf8(r.payload().isPresent() ? r.payload().get().toString() : "Ok"));
+                        response = response.withHeaders(r.headers());
                         response = this.onResponse(request, response);
 
                         return response;
-
-
-                    } catch (Exception e) {
-                        e.printStackTrace(System.err);
-                        return Response.of(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+                    } catch (Throwable t) {
+                        t.printStackTrace(System.err);
+                        return Response.of(Status.INTERNAL_SERVER_ERROR, t.getMessage());
                     }
                 })
             );
@@ -121,5 +129,17 @@ public abstract class Controller implements RouteProvider {
             .of(permanent?Status.MOVED_PERMANENTLY:Status.FOUND, "")
             .withHeader("Location", location);
 
+    }
+
+    protected String render(String resource) {
+        return this.renderer.render(resource);
+    }
+
+    protected String render(String resource, Renderer.Parameter ... parameters) {
+        return this.renderer.render(resource, parameters);
+    }
+
+    protected String render(String resource, Map<String, Object> parameters) {
+        return this.renderer.render(resource, parameters);
     }
 }

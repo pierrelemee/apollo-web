@@ -15,21 +15,21 @@ public abstract class SessionManager<T extends Session> {
         this.random = new Random();
     }
 
-    public Session extract(WebRequest request) {
+    public T extract(WebRequest request) {
         if (request.hasCookie(this.getSessionCookieName())) {
             if (this.hasSession(request.getCookie(this.getSessionCookieName()))) {
                 return this.getSession(request.getCookie(this.getSessionCookieName()));
             }
         }
 
-        return null;
+        return this.createSession();
     }
 
     public abstract String getSessionCookieName();
 
     public abstract boolean hasSession(String key);
 
-    public abstract Session getSession(String key);
+    public abstract T getSession(String key);
 
     protected abstract void addSession(Session session);
 
@@ -39,9 +39,9 @@ public abstract class SessionManager<T extends Session> {
 
     public abstract void removeSession(String key);
 
-    public Session createSession() {
+    public T createSession() {
         String key;
-        Session session;
+        T session;
 
         while (true) {
             if (!this.hasSession(key = generateKey())) {

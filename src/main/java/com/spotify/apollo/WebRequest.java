@@ -16,7 +16,6 @@ public class WebRequest implements Request {
     private final Map<String, List<String>> post;
     private Map<String, String> headers;
     private Map<String, String> cookies;
-    private Session session;
     private final Optional<ByteString> payload;
 
     public WebRequest(String uri) {
@@ -91,14 +90,6 @@ public class WebRequest implements Request {
 
     public String getCookie(String name) {
         return this.cookies.get(name);
-    }
-
-    public Session getSession() {
-        return session;
-    }
-
-    public void setSession(Session session) {
-        this.session = session;
     }
 
     @Override
