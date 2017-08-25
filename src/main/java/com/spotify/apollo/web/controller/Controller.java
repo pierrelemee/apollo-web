@@ -106,7 +106,6 @@ public abstract class Controller implements RouteProvider {
 
                         this.onRequest(request);
                         Response r = (Response) method.invoke(this, args);
-                        System.out.println("Coucou");
                         Response<ByteString> response = Response.of(r.status(), ByteString.encodeUtf8(r.payload().isPresent() ? r.payload().get().toString() : "Ok"));
                         response = response.withHeaders(r.headers());
                         response = this.onResponse(request, response);
